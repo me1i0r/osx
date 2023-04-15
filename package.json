@@ -18,5 +18,8 @@
       "**/matchstick-as",
       "**/matchstick-as/**"
     ]
+  },
+  "dependencies": {
+    "@openzeppelin/contracts-upgradeable": "^4.8.3"
   }
 }
