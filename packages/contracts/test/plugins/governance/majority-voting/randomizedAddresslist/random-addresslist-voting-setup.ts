@@ -13,7 +13,7 @@ import {
   ONE_HOUR,
 } from '../../../../test-utils/voting';
 import metadata from '../../../../../src/plugins/governance/majority-voting/addresslist/build-metadata.json';
-import {addresslistVotingInterface} from './addresslist-voting';
+import {randomaddresslistVotingInterface} from './random-addresslist-voting';
 
 let defaultData: any;
 let defaultVotingSettings: VotingSettings;
@@ -33,9 +33,9 @@ const UPDATE_VOTING_SETTINGS_PERMISSION_ID = ethers.utils.id(
 const UPGRADE_PERMISSION_ID = ethers.utils.id('UPGRADE_PLUGIN_PERMISSION');
 const EXECUTE_PERMISSION_ID = ethers.utils.id('EXECUTE_PERMISSION');
 
-describe('AddresslistVotingSetup', function () {
+describe('RandomAddresslistVotingSetup', function () {
   let signers: SignerWithAddress[];
-  let addresslistVotingSetup: AddresslistVotingSetup;
+  let randomaddresslistVotingSetup: RandomAddresslistVotingSetup;
   let implementationAddress: string;
   let targetDao: any;
 
@@ -52,12 +52,12 @@ describe('AddresslistVotingSetup', function () {
     };
     defaultMembers = [signers[0].address];
 
-    const AddresslistVotingSetup = await ethers.getContractFactory(
-      'AddresslistVotingSetup'
+    const RandomAddresslistVotingSetup = await ethers.getContractFactory(
+      'RandomAddresslistVotingSetup'
     );
-    addresslistVotingSetup = await AddresslistVotingSetup.deploy();
+    randomaddresslistVotingSetup = await RandomAddresslistVotingSetup.deploy();
 
-    implementationAddress = await addresslistVotingSetup.implementation();
+    implementationAddress = await randomaddresslistVotingSetup.implementation();
 
     defaultData = abiCoder.encode(metadata.pluginSetupABI.prepareInstallation, [
       Object.values(defaultVotingSettings),
@@ -66,17 +66,17 @@ describe('AddresslistVotingSetup', function () {
   });
 
   it('does not support the empty interface', async () => {
-    expect(await addresslistVotingSetup.supportsInterface('0xffffffff')).to.be
+    expect(await randomaddresslistVotingSetup.supportsInterface('0xffffffff')).to.be
       .false;
   });
 
   it('creates address list voting base with the correct interface', async () => {
-    const factory = await ethers.getContractFactory('AddresslistVoting');
-    const addresslistVotingContract = factory.attach(implementationAddress);
+    const factory = await ethers.getContractFactory('RandomAddresslistVoting');
+    const randomaddresslistVotingContract = factory.attach(implementationAddress);
 
     expect(
-      await addresslistVotingContract.supportsInterface(
-        getInterfaceID(addresslistVotingInterface)
+      await randomaddresslistVotingContract.supportsInterface(
+        getInterfaceID(randomaddresslistVotingInterface)
       )
     ).to.be.eq(true);
   });
@@ -84,21 +84,21 @@ describe('AddresslistVotingSetup', function () {
   describe('prepareInstallation', async () => {
     it('fails if data is empty, or not of minimum length', async () => {
       await expect(
-        addresslistVotingSetup.prepareInstallation(
+        randomaddresslistVotingSetup.prepareInstallation(
           targetDao.address,
           EMPTY_DATA
         )
       ).to.be.reverted;
 
       await expect(
-        addresslistVotingSetup.prepareInstallation(
+        randomaddresslistVotingSetup.prepareInstallation(
           targetDao.address,
           defaultData.substring(0, defaultData.length - 2)
         )
       ).to.be.reverted;
 
       await expect(
-        addresslistVotingSetup.prepareInstallation(
+        randomaddresslistVotingSetup.prepareInstallation(
           targetDao.address,
           defaultData
         )
@@ -107,17 +107,17 @@ describe('AddresslistVotingSetup', function () {
 
     it('correctly returns plugin, helpers and permissions', async () => {
       const nonce = await ethers.provider.getTransactionCount(
-        addresslistVotingSetup.address
+        randomaddresslistVotingSetup.address
       );
       const anticipatedPluginAddress = ethers.utils.getContractAddress({
-        from: addresslistVotingSetup.address,
+        from: randomaddresslistVotingSetup.address,
         nonce,
       });
 
       const {
         plugin,
         preparedSetupData: {helpers, permissions},
-      } = await addresslistVotingSetup.callStatic.prepareInstallation(
+      } = await randomaddresslistVotingSetup.callStatic.prepareInstallation(
         targetDao.address,
         defaultData
       );
@@ -159,50 +159,50 @@ describe('AddresslistVotingSetup', function () {
 
     it('correctly sets up the plugin', async () => {
       const nonce = await ethers.provider.getTransactionCount(
-        addresslistVotingSetup.address
+        randomaddresslistVotingSetup.address
       );
       const anticipatedPluginAddress = ethers.utils.getContractAddress({
-        from: addresslistVotingSetup.address,
+        from: randomaddresslistVotingSetup.address,
         nonce,
       });
 
-      await addresslistVotingSetup.prepareInstallation(
+      await randomaddresslistVotingSetup.prepareInstallation(
         targetDao.address,
         defaultData
       );
 
-      const factory = await ethers.getContractFactory('AddresslistVoting');
-      const addresslistVotingContract = factory.attach(
+      const factory = await ethers.getContractFactory('RandomAddresslistVoting');
+      const randomaddresslistVotingContract = factory.attach(
         anticipatedPluginAddress
       );
       const latestBlock = await ethers.provider.getBlock('latest');
 
-      expect(await addresslistVotingContract.dao()).to.be.equal(
+      expect(await randomaddresslistVotingContract.dao()).to.be.equal(
         targetDao.address
       );
-      expect(await addresslistVotingContract.minParticipation()).to.be.equal(
+      expect(await randomaddresslistVotingContract.minParticipation()).to.be.equal(
         defaultVotingSettings.minParticipation
       );
-      expect(await addresslistVotingContract.supportThreshold()).to.be.equal(
+      expect(await randomaddresslistVotingContract.supportThreshold()).to.be.equal(
         defaultVotingSettings.supportThreshold
       );
 
-      expect(await addresslistVotingContract.minDuration()).to.be.equal(
+      expect(await randomaddresslistVotingContract.minDuration()).to.be.equal(
         defaultVotingSettings.minDuration
       );
       expect(
-        await addresslistVotingContract.minProposerVotingPower()
+        await randomaddresslistVotingContract.minProposerVotingPower()
       ).to.be.equal(defaultVotingSettings.minProposerVotingPower);
 
       await ethers.provider.send('evm_mine', []);
 
       expect(
-        await addresslistVotingContract.addresslistLengthAtBlock(
+        await randomaddresslistVotingContract.addresslistLengthAtBlock(
           latestBlock.number
         )
       ).to.be.equal(defaultMembers.length);
       expect(
-        await addresslistVotingContract.isListedAtBlock(
+        await randomaddresslistVotingContract.isListedAtBlock(
           defaultMembers[0],
           latestBlock.number
         )
@@ -215,7 +215,7 @@ describe('AddresslistVotingSetup', function () {
       const plugin = ethers.Wallet.createRandom().address;
 
       const permissions =
-        await addresslistVotingSetup.callStatic.prepareUninstallation(
+        await randomaddresslistVotingSetup.callStatic.prepareUninstallation(
           targetDao.address,
           {
             plugin,

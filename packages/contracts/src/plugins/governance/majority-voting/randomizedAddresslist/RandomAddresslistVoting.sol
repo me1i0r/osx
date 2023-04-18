@@ -23,7 +23,7 @@ contract RandomAddresslistVoting is IMembership, Addresslist, MajorityVotingBase
 
     // TODO - For now, store a local mapping of addresses that will be the whitelisted addresses
     /// @notice The mapping containing the whitelist of the address list, defauls to false
-    mapping(address => bool) private _whitelistedAddresses;
+    mapping(address => bool) private _representatives;
 
     /// @notice The [ERC-165](https://eips.ethereum.org/EIPS/eip-165) interface ID of the contract.
     bytes4 internal constant ADDRESSLIST_VOTING_INTERFACE_ID =
@@ -43,10 +43,11 @@ contract RandomAddresslistVoting is IMembership, Addresslist, MajorityVotingBase
         address[] calldata _members
     ) external initializer {
         __MajorityVotingBase_init(_dao, _votingSettings);
+        
+        _representatives = _randomlySelect(_members);
+        _addAddresses(_representatives);
 
-        _addAddresses(_members);
-        initializeWhitelist(_members);
-        emit MembersAdded({members: _members});
+        emit MembersAdded({representatives: _representatives});
     }
 
     // Initialize the _whitelistedAddresses mapping to false
@@ -56,8 +57,17 @@ contract RandomAddresslistVoting is IMembership, Addresslist, MajorityVotingBase
         }
     }
 
+    function isRepresentative(address _account) public view returns (bool) {
+        for (uint i = 0; i < _representatives.length; i++) {
+            if (_representatives[i] == account) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // Check if it is in the list of whitelisted voters
-    function isWhitelistedAddress(address _account) public view returns (bool) {
+    function isRepresentative(address _account) public view returns (bool) {
         return _whitelistedAddresses[_account];
     }
 
@@ -69,7 +79,7 @@ contract RandomAddresslistVoting is IMembership, Addresslist, MajorityVotingBase
             _interfaceId == ADDRESSLIST_VOTING_INTERFACE_ID ||
             _interfaceId == type(Addresslist).interfaceId ||
             _interfaceId == type(IMembership).interfaceId ||
-            super.supportsInterface(_interfaceId);
+            super.supportsInterface(_interfaceId);  
     }
 
     /// @notice Adds new members to the address list.
@@ -221,7 +231,7 @@ contract RandomAddresslistVoting is IMembership, Addresslist, MajorityVotingBase
         }
 
         // The voter is not in the list of whitelisted voters for the proposal
-        if (!isWhitelistedAddress(_account)) {
+        if (!isRepresentative(_account)) {
             return false;
         }
 

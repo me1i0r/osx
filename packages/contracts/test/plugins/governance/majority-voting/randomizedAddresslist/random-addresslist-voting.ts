@@ -46,7 +46,7 @@ import {
   ProposalExecutedEvent,
 } from '../../../../../typechain/AddresslistVoting';
 
-export const addresslistVotingInterface = new ethers.utils.Interface([
+export const randomaddresslistVotingInterface = new ethers.utils.Interface([
   'function initialize(address,tuple(uint8,uint32,uint32,uint64,uint256),address[])',
   'function addAddresses(address[])',
   'function removeAddresses(address[])',
@@ -203,7 +203,7 @@ describe('AddresslistVoting', function () {
     it('supports the `AddresslistVoting` interface', async () => {
       expect(
         await voting.supportsInterface(
-          getInterfaceID(addresslistVotingInterface)
+          getInterfaceID(randomaddresslistVotingInterface)
         )
       ).to.be.true;
     });
