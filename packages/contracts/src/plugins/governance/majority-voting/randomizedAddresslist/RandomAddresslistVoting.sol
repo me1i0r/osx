@@ -21,8 +21,7 @@ import {RandomVoterSelection} from "./RandomVoterSelection.sol";
 contract RandomAddresslistVoting is IMembership, Addresslist, MajorityVotingBase {
     using SafeCastUpgradeable for uint256;
 
-    // TODO - For now, store a local mapping of addresses that will be the whitelisted addresses
-    /// @notice The mapping containing the whitelist of the address list, defauls to false
+    /// @notice The mapping of randomly selected representatives from all DAO members
     mapping(address => bool) private _representatives;
 
     /// @notice The [ERC-165](https://eips.ethereum.org/EIPS/eip-165) interface ID of the contract.

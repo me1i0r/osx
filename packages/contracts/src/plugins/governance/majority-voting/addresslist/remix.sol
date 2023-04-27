@@ -1,38 +1,162 @@
-
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+// An example of a consumer contract that directly pays for each request.
+pragma solidity ^0.8.7;
 
-  /**
-   * @title ContractName
-   * @dev ContractDescription
-   * @custom:dev-run-script scripts/deploy_with_ethers.ts
-   */
+import "@chainlink/contracts/src/v0.8/ConfirmedOwner.sol";
+import "@chainlink/contracts/src/v0.8/VRFV2WrapperConsumerBase.sol";
 
+/**
+ * Request testnet LINK and ETH here: https://faucets.chain.link/
+ * Find information on LINK Token Contracts and get the latest ETH and LINK faucets here: https://docs.chain.link/docs/link-token-contracts/
+ */
 
-contract randomSelect {
+/**
+ * THIS IS AN EXAMPLE CONTRACT THAT USES HARDCODED VALUES FOR CLARITY.
+ * THIS IS AN EXAMPLE CONTRACT THAT USES UN-AUDITED CODE.
+ * DO NOT USE THIS CODE IN PRODUCTION.
+ */
 
+contract VRFv2DirectFundingConsumer is
+    VRFV2WrapperConsumerBase,
+    ConfirmedOwner
+{
+    event RequestSent(uint256 requestId, uint32 numWords);
+    event RequestFulfilled(
+        uint256 requestId,
+        uint256[] randomWords,
+        uint256 payment
+    );
 
-  mapping(uint => bool) public sample;
- //   constructor() {
- //       sample;
- //   }
-
-    function randomSample(address[] memory members, uint256 sampleSize) public {
-        require(sampleSize <= members.length, "Sample size exceeds number of members");
-        uint256 index = uint256(keccak256(abi.encodePacked(block.difficulty, block.timestamp))) % members.length;
-        sample[index] = true;
-
-        for (uint256 count = 0; count < sampleSize; count++) {
-            if (index + index >= members.length) {
-                index = (index + index) % members.length;
-            } else {
-                index += index;
-            }
-            while (sample[index]) {
-                index++;
-            }
-            sample[index] = true;
-        }
+    struct RequestStatus {
+        uint256 paid; // amount paid in link
+        bool fulfilled; // whether the request has been successfully fulfilled
+        uint256[] randomWords;
     }
+    mapping(uint256 => RequestStatus)
+        public s_requests; /* requestId --> requestStatus */
+
+    // past requests Id.
+    uint256[] public requestIds;
+    uint256 public lastRequestId;
+
+    // Depends on the number of requested values that you want sent to the
+    // fulfillRandomWords() function. Test and adjust
+    // this limit based on the network that you select, the size of the request,
+    // and the processing of the callback request in the fulfillRandomWords()
+    // function.
+    uint32 callbackGasLimit = 100000;
+
+    // The default is 3, but you can set this higher.
+    uint16 requestConfirmations = 3;
+
+    // For this example, retrieve 2 random values in one request.
+    // Cannot exceed VRFV2Wrapper.getConfig().maxNumWords.
+    uint32 numWords = 2;
+
+    // Address LINK - hardcoded for Sepolia
+    address linkAddress = 0x779877A7B0D9E8603169DdbD7836e478b4624789;
+
+    // address WRAPPER - hardcoded for Sepolia
+    address wrapperAddress = 0xab18414CD93297B0d12ac29E63Ca20f515b3DB46;
+
+    constructor()
+        ConfirmedOwner(msg.sender)
+        VRFV2WrapperConsumerBase(linkAddress, wrapperAddress)
+    {}
+
+    function requestRandomWords()
+        public
+        onlyOwner
+        returns (uint256 requestId)
+    {
+        requestId = requestRandomness(
+            callbackGasLimit,
+            requestConfirmations,
+            numWords
+        );
+        s_requests[requestId] = RequestStatus({
+            paid: VRF_V2_WRAPPER.calculateRequestPrice(callbackGasLimit),
+            randomWords: new uint256[](0),
+            fulfilled: false
+        });
+        requestIds.push(requestId);
+        lastRequestId = requestId;
+        emit RequestSent(requestId, numWords);
+        return requestId;
+    }
+
+    function fulfillRandomWords(
+        uint256 _requestId,
+        uint256[] memory _randomWords
+    ) internal override {
+        require(s_requests[_requestId].paid > 0, "request not found");
+        s_requests[_requestId].fulfilled = true;
+        s_requests[_requestId].randomWords = _randomWords;
+        emit RequestFulfilled(
+            _requestId,
+            _randomWords,
+            s_requests[_requestId].paid
+        );
+    }
+
+    function getRequestStatus(
+        uint256 _requestId
+    )
+        external
+        view
+        returns (uint256 paid, bool fulfilled, uint256[] memory randomWords)
+    {
+        require(s_requests[_requestId].paid > 0, "request not found");
+        RequestStatus memory request = s_requests[_requestId];
+        return (request.paid, request.fulfilled, request.randomWords);
+    }
+
+    /**
+     * Allow withdraw of Link tokens from the contract
+     */
+    function withdrawLink() public onlyOwner {
+        LinkTokenInterface link = LinkTokenInterface(linkAddress);
+        require(
+            link.transfer(msg.sender, link.balanceOf(address(this))),
+            "Unable to transfer"
+        );
+    }
+
+    function getSample(address[] memory members, uint sampleSize) public view returns (address[] memory) {
+       
+        (uint256 paid, bool fulfilled, uint256[] memory randomWords) = this.getRequestStatus(lastRequestId);
+        require(paid > 1, "unpaid");
+        require(fulfilled == true, "randomness not yet fullfilled");
+
+        // Random number between 0 and number of members - 1 for array indexing
+        uint256 randStart = randomWords[0] % (members.length - 1);
+
+        // Random number between 1 and number of members divided by the sample size to avoid repeat indexing
+        uint256 randIncrement = randomWords[1] % (members.length / sampleSize - 1) + 1;
+
+        // Random sample of member addresses
+        address[] memory sample = new address[](sampleSize);
+
+        // Start with a random index 
+        uint256 index = randStart;
+
+        // Loop until the number of addressses in the sample array equals the sample size    
+        for (uint256 i = 0; i < sampleSize; i++) {
+            
+            // Put the address of the member at the index in the sample array
+            sample[i] = members[index];
+
+            // Wrap the index if it exceeds the number of members
+            if (index + randIncrement >= members.length) {
+                index = (index + randIncrement) % members.length;
+            
+            // Add the random increment to the index
+            } else {
+                index += randIncrement;
+            }   
+        }
+    return sample;
+
+    }   
 
 }
