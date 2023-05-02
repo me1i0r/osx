@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-pragma solidity 0.8.19;
+pragma solidity 0.8.17;
 
 import {SafeCastUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 
@@ -12,17 +12,12 @@ import {Addresslist} from "../../../utils/Addresslist.sol";
 import {IMajorityVoting} from "../IMajorityVoting.sol";
 import {MajorityVotingBase} from "../MajorityVotingBase.sol";
 
-import {RandomVoterSelection} from "./RandomSelection.sol";
-
-/// @title RandomAddresslistVoting
-/// @author Michael Gallegos - 2023
+/// @title AddresslistVoting
+/// @author Aragon Association - 2021-2023.
 /// @notice The majority voting implementation using an list of member addresses.
 /// @dev This contract inherits from `MajorityVotingBase` and implements the `IMajorityVoting` interface.
-contract RandomAddresslistVoting is IMembership, Addresslist, MajorityVotingBase {
+contract AddresslistVoting is IMembership, Addresslist, MajorityVotingBase {
     using SafeCastUpgradeable for uint256;
-
-    /// @notice The mapping of randomly selected representatives from all DAO members
-    mapping(address => bool) private _representatives;
 
     /// @notice The [ERC-165](https://eips.ethereum.org/EIPS/eip-165) interface ID of the contract.
     bytes4 internal constant ADDRESSLIST_VOTING_INTERFACE_ID =
@@ -42,32 +37,9 @@ contract RandomAddresslistVoting is IMembership, Addresslist, MajorityVotingBase
         address[] calldata _members
     ) external initializer {
         __MajorityVotingBase_init(_dao, _votingSettings);
-        
-        _representatives = _randomlySelect(_members);
-        _addAddresses(_representatives);
 
-        emit MembersAdded({representatives: _representatives});
-    }
-
-    // Initialize the _whitelistedAddresses mapping to false
-    function initializeWhitelist(address[] memory members) public {
-        for (uint i = 0; i < members.length; i++) {
-            _whitelistedAddresses[members[i]] = false;
-        }
-    }
-
-    function isRepresentative(address _account) public view returns (bool) {
-        for (uint i = 0; i < _representatives.length; i++) {
-            if (_representatives[i] == account) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    // Check if it is in the list of whitelisted voters
-    function isRepresentative(address _account) public view returns (bool) {
-        return _whitelistedAddresses[_account];
+        _addAddresses(_members);
+        emit MembersAdded({members: _members});
     }
 
     /// @notice Checks if this or the parent contract supports an interface by its ID.
@@ -78,7 +50,7 @@ contract RandomAddresslistVoting is IMembership, Addresslist, MajorityVotingBase
             _interfaceId == ADDRESSLIST_VOTING_INTERFACE_ID ||
             _interfaceId == type(Addresslist).interfaceId ||
             _interfaceId == type(IMembership).interfaceId ||
-            super.supportsInterface(_interfaceId);  
+            super.supportsInterface(_interfaceId);
     }
 
     /// @notice Adds new members to the address list.
@@ -168,7 +140,6 @@ contract RandomAddresslistVoting is IMembership, Addresslist, MajorityVotingBase
     }
 
     /// @inheritdoc IMembership
-    // Check if it can vote
     function isMember(address _account) external view returns (bool) {
         return isListed(_account);
     }
@@ -226,11 +197,6 @@ contract RandomAddresslistVoting is IMembership, Addresslist, MajorityVotingBase
 
         // The proposal vote hasn't started or has already ended.
         if (!_isProposalOpen(proposal_)) {
-            return false;
-        }
-
-        // The voter is not in the list of whitelisted voters for the proposal
-        if (!isRepresentative(_account)) {
             return false;
         }
 
